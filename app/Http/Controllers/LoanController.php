@@ -26,6 +26,7 @@ class LoanController extends Controller
         return "LoanController@show, id: {$id}";
     }
 
+    // kembalikan
     public function kembalikan(string $id)
     {
         return "LoanController@kembalikan, id: {$id}";
