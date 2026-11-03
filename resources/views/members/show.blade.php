@@ -1,17 +1,12 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <title>Detail Anggota</title>
-    <style>
-        body { font-family: sans-serif; margin: 40px; max-width: 700px; }
+@extends('layouts.app')
+@section('title', 'Detail Anggota')
+@section('content')
+<style>
         table { border-collapse: collapse; width: 100%; margin-top: 16px; }
         th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
         .info th { width: 160px; background: #f3f4f6; }
     </style>
-</head>
-<body>
-    <h1>Detail Anggota</h1>
+<h1>Detail Anggota</h1>
     <p><a href="{{ route('members.index') }}">&larr; Kembali ke daftar anggota</a></p>
 
     <table class="info">
@@ -74,5 +69,4 @@
             @endforelse
         </tbody>
     </table>
-</body>
-</html>
+@endsection

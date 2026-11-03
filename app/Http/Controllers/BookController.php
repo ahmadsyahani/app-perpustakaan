@@ -9,7 +9,7 @@ use App\Models\Category;
 
 class BookController extends Controller
 {
-    public function index()
+        public function index()
     {
         $books = Book::with('category')->paginate(10);
 
@@ -42,7 +42,7 @@ class BookController extends Controller
 
     public function edit(string $id)
     {
-        $book = Book::findOrFail($id);
+        $book = Book::with('category')->findOrFail($id);
         $categories = Category::all();
 
         return view('books.edit', compact('book', 'categories'));
@@ -50,14 +50,14 @@ class BookController extends Controller
 
     public function update(Request $request, string $id)
     {
-        $book = Book::findOrFail($id);
+        $book = Book::with('category')->findOrFail($id);
 
         $validated = $request->validate([
             'judul' => 'required|string|max:200',
             'penulis' => 'required|string|max:100',
             'penerbit' => 'required|string|max:100',
             'tahun_terbit' => 'required|integer|min:1900|max:'.date('Y'),
-            'isbn' => 'nullable|string|max:20',
+            'isbn' => 'nullable|string|max:20|unique:books,isbn,'.$book->id,
             'stok' => 'required|integer|min:0',
             'category_id' => 'required|integer|exists:categories,id',
         ]);
@@ -70,7 +70,10 @@ class BookController extends Controller
 
     public function destroy(string $id)
     {
-        $book = Book::findOrFail($id);
+        $book = Book::with('category')->findOrFail($id);
+        if ($book->loanItems()->exists()) {
+            return back()->withErrors(['delete' => 'Buku masih tercatat dalam peminjaman.']);
+        }
         $book->delete();
 
         return redirect()->route('books.index')

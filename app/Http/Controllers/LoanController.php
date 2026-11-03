@@ -6,7 +6,9 @@ use Illuminate\Http\Request;
 use App\Models\Loan;
 use App\Models\Member;
 use App\Models\Book;
-use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Client\ConnectionException;
 
 class LoanController extends Controller
 {
@@ -21,25 +23,24 @@ class LoanController extends Controller
     {
         $members = Member::all();
         $books = Book::all();
-        $users = User::all();
 
-        return view('loans.create', compact('members', 'books', 'users'));
+        return view('loans.create', compact('members', 'books'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'member_id' => 'required|integer|exists:members,id',
-            'user_id' => 'required|integer|exists:users,id',
             'tanggal_pinjam' => 'required|date',
             'tanggal_kembali' => 'required|date|after_or_equal:tanggal_pinjam',
             'book_ids' => 'required|array|min:1',
-            'book_ids.*' => 'integer|exists:books,id',
+            'book_ids.*' => 'integer|distinct|exists:books,id',
         ]);
 
+        DB::transaction(function () use ($validated) {
         $loan = Loan::create([
             'member_id' => $validated['member_id'],
-            'user_id' => $validated['user_id'],
+            'user_id' => auth()->id(),
             'tanggal_pinjam' => $validated['tanggal_pinjam'],
             'tanggal_kembali' => $validated['tanggal_kembali'],
         ]);
@@ -48,6 +49,7 @@ class LoanController extends Controller
             $loan->loanItems()->create(['book_id' => $bookId]);
         }
 
+        });
         return redirect()->route('loans.index')
             ->with('success', 'Transaksi peminjaman berhasil dibuat.');
     }
@@ -65,7 +67,7 @@ class LoanController extends Controller
         $loan = Loan::findOrFail($id);
         $loan->update([
             'status' => 'dikembalikan',
-            'tanggal_dikembalikan' => now()->toDateString(),
+            'tanggal_dikembalikan' => $loan->tanggal_dikembalikan ?? now()->toDateString(),
         ]);
 
         return redirect()->route('loans.index')
@@ -84,13 +86,15 @@ class LoanController extends Controller
         $loan = Loan::findOrFail($id);
 
         $validated = $request->validate([
-            'tanggal_kembali' => 'required|date|after_or_equal:tanggal_pinjam',
+            'tanggal_kembali' => 'required|date|after_or_equal:'.$loan->tanggal_pinjam,
             'status' => 'required|in:dipinjam,dikembalikan,terlambat',
         ], [
             'tanggal_kembali.required' => 'Tanggal kembali wajib diisi.',
             'tanggal_kembali.after_or_equal' => 'Tanggal kembali tidak boleh sebelum tanggal pinjam.',
         ]);
 
+        $validated['tanggal_dikembalikan'] = $validated['status'] === 'dikembalikan'
+            ? ($loan->tanggal_dikembalikan ?? now()->toDateString()) : null;
         $loan->update($validated);
 
         return redirect()->route('loans.index')
@@ -100,10 +104,34 @@ class LoanController extends Controller
     public function destroy(string $id)
     {
         $loan = Loan::findOrFail($id);
-        $loan->loanItems()->delete();
-        $loan->delete();
+        DB::transaction(function () use ($loan) {
+            $loan->loanItems()->delete();
+            $loan->delete();
+        });
 
         return redirect()->route('loans.index')
             ->with('success', 'Transaksi peminjaman berhasil dihapus.');
     }
+public function report(Request $request)
+{
+    $body = ['data' => [], 'meta' => null];
+
+    try {
+        $response = Http::acceptJson()->connectTimeout(2)->timeout(5)->get(config('services.internal_api.base_url').'/api/loans', [
+            'page' => $request->query('page', 1),
+        ]);
+
+        if ($response->successful()) {
+            $body = $response->json();
+        }
+    } catch (ConnectionException $e) {
+        // Server internal API (port 8011) tidak bisa dihubungi - tabel laporan tampil kosong.
+    }
+
+    return view('loans.report', [
+        'loans' => $body['data'] ?? [],
+        'meta' => $body['meta'] ?? null,
+    ]);
+}
+
 }

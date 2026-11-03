@@ -55,7 +55,10 @@ public function update(Request $request, string $id)
 public function destroy(string $id)
 {
     $category = Category::findOrFail($id);
-    $category->delete();
+    if ($category->books()->exists()) {
+            return back()->withErrors(['delete' => 'Kategori masih digunakan oleh buku.']);
+        }
+        $category->delete();
 
     return redirect()->route('categories.index')
         ->with('success', 'Kategori berhasil dihapus.');
