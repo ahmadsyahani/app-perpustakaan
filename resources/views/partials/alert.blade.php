@@ -1,3 +1,6 @@
 @if (session('success'))
     <div class="alert-success">{{ session('success') }}</div>
 @endif
+@if ($errors->any())
+<div role="alert" style="color: #b91c1c"><ul>@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+@endif

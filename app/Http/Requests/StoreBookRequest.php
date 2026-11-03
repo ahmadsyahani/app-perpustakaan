@@ -22,9 +22,9 @@ class StoreBookRequest extends FormRequest
             'penulis' => 'required|string|max:100',
             'penerbit' => 'required|string|max:100',
             'tahun_terbit' => 'required|integer|min:1900|max:'.date('Y'),
-            'isbn' => 'nullable|string|max:20',
+            'isbn' => 'nullable|string|max:20|unique:books,isbn',
             'stok' => 'required|integer|min:0',
-            'category_id' => 'required|integer',
+            'category_id' => 'required|integer|exists:categories,id',
         ];
     }
 
@@ -44,6 +44,7 @@ class StoreBookRequest extends FormRequest
             'stok.integer' => 'Stok harus berupa angka.',
             'stok.min' => 'Stok tidak boleh kurang dari 0.',
             'category_id.required' => 'Kategori wajib dipilih.',
+            'category_id.exists' => 'Kategori yang dipilih tidak valid.',
         ];
     }
 }
